@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Tuto — Déployer ygocarder sur GitHub Pages</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --bg: #1e1e1e;
+    --panel: #2a2a2a;
+    --border: #3a3a3a;
+    --text: #e0e0e0;
+    --muted: #a0a0a0;
+    --accent: #4ea8ff;
+    --code-bg: #111;
+    --code-text: #c9d1d9;
+    --ok: #4ec9b0;
+    --warn: #ffb300;
+    --err: #ff6b6b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+  }
+  .wrap { max-width: 800px; margin: 0 auto; padding: 40px 20px; }
+  h1 { font-size: 2rem; margin: 0 0 10px; color: #fff; }
+  h2 { font-size: 1.3rem; margin: 40px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); color: #fff; }
+  h3 { font-size: 1rem; margin: 24px 0 8px; color: var(--accent); }
+  p { margin: 8px 0; }
+  .muted { color: var(--muted); font-size: 0.9rem; }
+  code {
+    background: var(--code-bg);
+    color: var(--code-text);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: "Consolas", "Monaco", monospace;
+    font-size: 0.9em;
+  }
+  pre {
+    background: var(--code-bg);
+    color: var(--code-text);
+    padding: 14px 16px;
+    border-radius: 6px;
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    font-family: "Consolas", "Monaco", monospace;
+    font-size: 0.85em;
+    line-height: 1.5;
+    position: relative;
+  }
+  pre code { background: none; padding: 0; border-radius: 0; }
+  ol, ul { padding-left: 22px; }
+  li { margin: 6px 0; }
+  .warn { background: #3a2a00; border-left: 3px solid var(--warn); padding: 10px 14px; margin: 14px 0; border-radius: 4px; }
+  .ok { background: #103020; border-left: 3px solid var(--ok); padding: 10px 14px; margin: 14px 0; border-radius: 4px; }
+  .err { background: #3a1212; border-left: 3px solid var(--err); padding: 10px 14px; margin: 14px 0; border-radius: 4px; }
+  .step {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px 20px;
+    margin: 16px 0;
+  }
+  .step h2 { margin-top: 0; border: none; padding: 0; }
+  .num {
+    display: inline-block;
+    background: var(--accent);
+    color: #000;
+    width: 28px; height: 28px;
+    line-height: 28px;
+    text-align: center;
+    border-radius: 50%;
+    font-weight: bold;
+    margin-right: 8px;
+    font-size: 0.95rem;
+  }
+  .copy {
+    position: absolute;
+    top: 8px; right: 8px;
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 4px 10px;
+    cursor: pointer;
+    font-size: 0.8rem;
+  }
+  .copy:hover { background: var(--accent); color: #000; }
+  .final {
+    background: linear-gradient(135deg, #1a3a5c, #2a5a8c);
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    margin: 30px 0;
+  }
+  .final a { color: #fff; font-size: 1.1rem; text-decoration: none; font-weight: bold; word-break: break-all; }
+  .final a:hover { text-decoration: underline; }
+  kbd {
+    background: #333;
+    border: 1px solid #555;
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 0.85em;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Déployer ygocarder sur GitHub Pages</h1>
+  <p class="muted">Méthode 100 % GitHub, <b>sans terminal</b>, sans installer Node. Tout se fait dans le navigateur.</p>
+
+  <div class="ok">
+    <b>Le principe</b> — GitHub construit et publie le site tout seul (GitHub Actions) à chaque modification du code. Tu fais la config une seule fois.
+  </div>
+
+  <div class="step">
+    <h2><span class="num">1</span>Corriger le <code>homepage</code> dans <code>package.json</code></h2>
+    <ol>
+      <li>Sur ton repo, clique sur le fichier <code>package.json</code>.</li>
+      <li>Clique sur le crayon ✏️ en haut à droite.</li>
+      <li>Cherche la ligne <code>homepage</code>. Si tu vois <code>lauqerm.github.io</code>, remplace-la par :
+        <pre><code>"homepage": "https://kevinraphael95.github.io/ygocarder",</code></pre>
+      </li>
+      <li>Clique sur <b>Commit changes</b>.</li>
+    </ol>
+    <div class="warn">
+      <b>Attention</b> — <code>kevinraphael95</code> doit être <b>ton pseudo GitHub</b> et <code>ygocarder</code> <b>le nom exact de ton repo</b>. Sinon : page blanche.
+    </div>
+    <p class="muted">Déjà bon ? Passe à l'étape 2.</p>
+  </div>
+
+  <div class="step">
+    <h2><span class="num">2</span>Créer le fichier de déploiement</h2>
+    <ol>
+      <li>Va sur <code>github.com/kevinraphael95/ygocarder</code></li>
+      <li>Clique sur <b>Add file</b> puis <b>Create new file</b></li>
+      <li>Dans la case du nom, tape <b>exactement</b> :
+        <pre><code>.github/workflows/deploy.yml</code></pre>
+        <p class="muted">Quand tu tapes les <code>/</code>, GitHub crée les dossiers tout seul.</p>
+      </li>
+      <li>Colle dans le grand champ de texte le code ci-dessous :</li>
+    </ol>
+
+<pre id="yml"><button class="copy" onclick="copyYml(this)">Copier</button><code>name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+      - run: npm run build
+        env:
+          NODE_OPTIONS: --openssl-legacy-provider
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4</code></pre>
+
+    <ol start="5">
+      <li>Clique sur <b>Commit changes…</b> (bouton vert en haut à droite), puis <b>Commit changes</b> dans la fenêtre.</li>
+    </ol>
+    <div class="warn">
+      <b>Attention</b> — l'indentation (les espaces au début des lignes) compte. Utilise le bouton <b>Copier</b>, ne retape pas à la main.
+    </div>
+  </div>
+
+  <div class="step">
+    <h2><span class="num">3</span>Activer GitHub Pages en mode Actions</h2>
+    <ol>
+      <li>Va sur <code>github.com/kevinraphael95/ygocarder/settings/pages</code></li>
+      <li>Dans <b>Build and deployment</b>, change <b>Source</b> en <code>GitHub Actions</code></li>
+      <li>Rien d'autre à faire, ça s'enregistre tout seul.</li>
+    </ol>
+    <div class="warn">
+      Si c'était sur <code>Deploy from a branch</code>, c'est <b>ça</b> qui causait ta page blanche : GitHub affichait ton code source au lieu du site construit.
+    </div>
+  </div>
+
+  <div class="step">
+    <h2><span class="num">4</span>Lancer et suivre le déploiement</h2>
+    <ol>
+      <li>Va dans l'onglet <b>Actions</b> de ton repo.</li>
+      <li>Le workflow <b>Deploy to GitHub Pages</b> démarre tout seul après ton commit.
+        <p class="muted">Rien ne tourne ? Clique sur <b>Deploy to GitHub Pages</b> à gauche, puis <b>Run workflow</b> → <b>Run workflow</b>.</p>
+      </li>
+      <li>Attends <b>2 à 5 minutes</b>. Pastille jaune = en cours, coche verte = terminé, croix rouge = erreur.</li>
+    </ol>
+  </div>
+
+  <div class="step">
+    <h2><span class="num">5</span>Ouvrir le site</h2>
+    <p>Quand c'est vert, ouvre le lien. Fais <kbd>Ctrl</kbd> + <kbd>F5</kbd> si tu vois encore l'ancienne page blanche (cache).</p>
+  </div>
+
+  <div class="final">
+    <p style="margin:0 0 8px; color:#cfe6ff;">Ton site sera accessible ici</p>
+    <a href="https://kevinraphael95.github.io/ygocarder/" target="_blank">
+      https://kevinraphael95.github.io/ygocarder/
+    </a>
+  </div>
+
+  <h2>Si ça ne marche pas</h2>
+
+  <h3>Croix rouge dans l'onglet Actions</h3>
+  <p>Clique sur le workflow raté, puis sur le job rouge (<code>build</code>). Ouvre l'étape en rouge et regarde la dernière ligne d'erreur. Envoie-la (ou une capture) pour qu'on la corrige.</p>
+
+  <h3>Erreur <code>Missing script: "build"</code></h3>
+  <p>Ouvre <code>package.json</code>, regarde la section <code>"scripts"</code> et utilise le nom de la commande qui construit le site. Remplace alors <code>npm run build</code> dans <code>deploy.yml</code>.</p>
+
+  <h3>Erreur <code>path: dist</code> introuvable</h3>
+  <p>Ton projet construit peut-être dans un autre dossier (<code>build</code> par exemple). Dans <code>deploy.yml</code>, remplace <code>path: dist</code> par <code>path: build</code>.</p>
+
+  <h3>Le site est vert mais la page est toujours blanche</h3>
+  <p>Le chemin de base est faux. Dans <code>package.json</code>, vérifie :</p>
+  <pre><code>"homepage": "https://kevinraphael95.github.io/ygocarder",</code></pre>
+  <p>Selon l'outil de build (Vite), il faut aussi parfois <code>base: '/ygocarder/'</code> dans <code>vite.config</code>. Pour changer un fichier : ouvre-le sur GitHub, clique sur le crayon ✏️, modifie, <b>Commit changes</b>. Le site se redéploie tout seul.</p>
+
+  <h3>Erreur <code>digital envelope routines::unsupported</code></h3>
+  <p>Déjà géré : la ligne <code>NODE_OPTIONS</code> est dans le fichier.</p>
+
+  <h2>Mettre à jour le site</h2>
+  <p>Chaque modification validée sur <code>main</code> relance le déploiement automatiquement.</p>
+  <div class="ok">
+    Tu n'as plus rien à refaire. Pas de terminal, pas de <code>npm run deploy</code>.
+  </div>
+
+</div>
+
+<script>
+  function copyYml(btn) {
+    var code = document.querySelector('#yml code').innerText;
+    navigator.clipboard.writeText(code).then(function () {
+      btn.textContent = 'Copié !';
+      setTimeout(function () { btn.textContent = 'Copier'; }, 1500);
+    });
+  }
+</script>
+</body>
+</html>
