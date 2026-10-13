@@ -6,6 +6,32 @@ import { useLanguage } from './use-i18n';
 import { useBatchDownload } from './use-batch-download';
 import { ExportCallbackParameter } from './use-master-seri';
 
+const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
+/**
+ * A finished card is never fully transparent or uniformly black. When the batch grabs the export canvas while a new pipeline is redrawing it (the export effect below re-runs on every render), the result is a blank image saved under the card's name. This check lets the batch notice that and wait.
+ */
+const isExportCanvasUsable = (canvas: HTMLCanvasElement | null) => {
+    if (!canvas) return false;
+    try {
+        const probeCanvas = document.createElement('canvas');
+        probeCanvas.width = 24;
+        probeCanvas.height = 34;
+        const probeCtx = probeCanvas.getContext('2d', { willReadFrequently: true });
+        if (!probeCtx) return true;
+        probeCtx.drawImage(canvas, 0, 0, probeCanvas.width, probeCanvas.height);
+        const { data } = probeCtx.getImageData(0, 0, probeCanvas.width, probeCanvas.height);
+        for (let i = 0; i < data.length; i += 4) {
+            if (data[i + 3] > 10 && data[i] + data[i + 1] + data[i + 2] > 30) return true;
+        }
+        return false;
+    } catch (e) {
+        /** Tainted canvas etc.: let the regular error path deal with it. */
+        return true;
+    }
+};
+const BATCH_CAPTURE_MAX_ATTEMPTS = 8;
+const BATCH_PIPELINE_MAX_WAIT_MS = 5000;
+
 export type UseCardExport = {
     isTainted: boolean,
     isInitializing: boolean,
@@ -80,17 +106,39 @@ export const useCardExport = ({
         size: [number, number] = resolution,
     ) => {
         try {
-            const cardData = getCardDataUrl(size);
+            const batchState = useBatchDownload.getState();
+            /** Several pipelines can schedule this for the same card: the first good capture wins, later ones must not overwrite it. */
+            if (!batchState.isBatchDownloading || batchState.batchDataMap[cardId]) return;
+
+            let cardData: string | undefined;
+            for (let attempt = 1; attempt <= BATCH_CAPTURE_MAX_ATTEMPTS; attempt++) {
+                /** Never capture while a pipeline is (re)drawing the export canvas. */
+                const waitStart = Date.now();
+                while (exportRef.current.pipelineRunning && Date.now() - waitStart < BATCH_PIPELINE_MAX_WAIT_MS) {
+                    await sleep(100);
+                }
+                if (isExportCanvasUsable(exportCanvasRef.current) || attempt === BATCH_CAPTURE_MAX_ATTEMPTS) {
+                    if (attempt === BATCH_CAPTURE_MAX_ATTEMPTS && !isExportCanvasUsable(exportCanvasRef.current)) {
+                        console.warn('Batch export: canvas still blank after retries, saving it anyway', cardName);
+                    }
+                    cardData = getCardDataUrl(size);
+                    break;
+                }
+                await sleep(300);
+            }
             if (typeof cardData !== 'string') throw new Error('Failed to add card to batch');
             const fetchedDataUrl = await fetch(cardData);
             const blob = await fetchedDataUrl.blob();
-            if (isBatchDownloading) addToBatch(cardId, cardName, blob);
+            const latestState = useBatchDownload.getState();
+            if (latestState.isBatchDownloading && !latestState.batchDataMap[cardId]) {
+                latestState.addToBatch(cardId, cardName, blob);
+            }
         } catch (e) {
             onDownloadError();
         }
         document.querySelector('#export-canvas-guard')?.classList.remove('guard-on');
         onDownloadComplete();
-    }, [addToBatch, getCardDataUrl, isBatchDownloading, onDownloadComplete, onDownloadError, resolution]);
+    }, [exportCanvasRef, exportRef, getCardDataUrl, onDownloadComplete, onDownloadError, resolution]);
     const download = useCallback((size: [number, number] = resolution) => {
         try {
             const normalizedName = normalizeCardName(name);
