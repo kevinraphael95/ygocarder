@@ -1,3 +1,5 @@
+https://kevinraphael95.github.io/ygocarder/
+
 If you are looking for V1, please visit [ygocarder-v1 repo](https://github.com/lauqerm/ygocarder-v1).
 
 ## YGO Carder
