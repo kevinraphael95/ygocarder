@@ -736,6 +736,16 @@ export const ImageCropper = forwardRef<ImageCropperRef, ImageCropper>(({
                             onTainted(cropperName);
                         }
                         if (crossorigin === undefined) {
+                            /** L'image est introuvable : on oublie l'ancienne et on vide le canvas */
+                            imgRef.current = null;
+                            if (receivingCanvas) {
+                                const { width, height } = receivingCanvas;
+                                const ctx = receivingCanvas.getContext('2d');
+
+                                ctx?.clearRect(0, 0, width, height);
+                                if (completedCrop) onCropChange(completedCrop, sourceType, interacted);
+                                onSourceLoaded(cropperName, crossorigin, interacted);
+                            }
                             setLoading(false);
                             setError('Tainted canvas');
                         }
