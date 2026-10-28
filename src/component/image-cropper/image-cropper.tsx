@@ -275,6 +275,9 @@ export const ImageCropper = forwardRef<ImageCropperRef, ImageCropper>(({
         const ctx = receivingCanvas.getContext('2d');
         if (!ctx || typeof ratio !== 'number' || ratio <= 0 || isLoading) return;
 
+        // 🔧 FIX: nettoie le canvas pour retirer l'illustration de la carte précédente
+        ctx.clearRect(0, 0, receivingCanvas.width, receivingCanvas.height);
+
         const { naturalHeight, naturalWidth } = image;
         const zoomX = naturalWidth / image.width;
         const zoomY = naturalHeight / image.height;
@@ -403,7 +406,8 @@ export const ImageCropper = forwardRef<ImageCropperRef, ImageCropper>(({
             setCrop(cur => ({ ...cur, current: fitCropData }));
         }
 
-    }, [completedCrop, receivingCanvas, redrawSignal, forceFit, imageStyle]);
+        // 🔧 FIX: ajout de internalSource et externalSource pour redessiner à chaque changement de carte
+    }, [completedCrop, receivingCanvas, redrawSignal, forceFit, imageStyle, internalSource, externalSource]);
 
     useEffect(() => {
         setInteracted(false);
@@ -686,14 +690,8 @@ export const ImageCropper = forwardRef<ImageCropperRef, ImageCropper>(({
                         : language['image-cropper.not-found-info']}
                     image={null}
                 />}
-                
-                {/* 
-                  * LA CORRECTION EST ICI :
-                  * On ajoute l'image source à la key.
-                  * Si elle change (ou devient vide), React va détruire le ReactCrop 
-                  * et le recréer à neuf, évitant ainsi que l'ancienne image reste affichée.
-                */}
-                <ReactCrop key={`${sourceType}-${isMigrated}-${redrawSignal}-${sourceType === 'offline' ? internalSource : externalSource}`}
+                {/* 🔧 FIX: la key ne dépend plus de la Data URL (trop longue + instable) */}
+                <ReactCrop key={`${sourceType}-${isMigrated}-${redrawSignal}`}
                     src={sourceType === 'offline' ? (internalSource || '') : (externalSource || '')}
                     disabled={(forceFit || disabled)}
                     className={(forceFit || disabled) ? 'force-fitted' : ''}
