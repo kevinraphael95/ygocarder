@@ -686,8 +686,15 @@ export const ImageCropper = forwardRef<ImageCropperRef, ImageCropper>(({
                         : language['image-cropper.not-found-info']}
                     image={null}
                 />}
-                <ReactCrop key={`${sourceType}-${isMigrated}-${redrawSignal}`}
-                    src={sourceType === 'offline' ? internalSource : externalSource}
+                
+                {/* 
+                  * LA CORRECTION EST ICI :
+                  * On ajoute l'image source à la key.
+                  * Si elle change (ou devient vide), React va détruire le ReactCrop 
+                  * et le recréer à neuf, évitant ainsi que l'ancienne image reste affichée.
+                */}
+                <ReactCrop key={`${sourceType}-${isMigrated}-${redrawSignal}-${sourceType === 'offline' ? internalSource : externalSource}`}
+                    src={sourceType === 'offline' ? (internalSource || '') : (externalSource || '')}
                     disabled={(forceFit || disabled)}
                     className={(forceFit || disabled) ? 'force-fitted' : ''}
                     imageStyle={backgroundColor
