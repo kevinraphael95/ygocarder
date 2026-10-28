@@ -158,6 +158,7 @@ export const useMasterSeriDrawer = (active: boolean, canvasMap: MasterSeriesCanv
         cornerText, hasCornerText,
         firstEditionText,
         furiganaHelper,
+        artFit, // ⬅️ AJOUTÉ ICI
         flag,
     } = card;
     const typographyFormat = getCardFormatMode(format, region);
@@ -253,7 +254,10 @@ export const useMasterSeriDrawer = (active: boolean, canvasMap: MasterSeriesCanv
     const isMonster = checkMonster(card);
     const isSpeedSkill = checkSpeedSkill(card);
 
-    const { body = 100, boundless } = opacity;
+    // ⬅️ MODIFIÉ ICI
+    const { body = 100, boundless: boundlessOpacity } = opacity;
+    const boundless = boundlessOpacity || artFit;
+    
     const requireShadow = !!(body < 50 || boundless);
     const lightFooter = checkLightFooter(bottomFrame);
     const {
@@ -484,10 +488,14 @@ export const useMasterSeriDrawer = (active: boolean, canvasMap: MasterSeriesCanv
                 artBorder: keepArtBorder,
                 body: opacityBody,
                 text: opacityEffect,
-                boundless,
+                boundless, // ⬅️ C'est le boundless de normalizedOpacity
                 baseFill,
                 frameBorder,
             } = normalizedOpacity;
+            
+            // ⬅️ AJOUTÉ ICI : on combine avec artFit
+            const isBoundless = boundless || artFit;
+
             /**
              * Layers:
              * * Base color
@@ -630,7 +638,8 @@ export const useMasterSeriDrawer = (active: boolean, canvasMap: MasterSeriesCanv
                     withPendulum: isPendulum,
                 });
             }
-            if (!boundless && combinedArtCtx) combinedArtCtx.drawImage(artOnCardCanvas, 0, 0);
+            // ⬅️ MODIFIÉ ICI : boundless -> isBoundless
+            if (!isBoundless && combinedArtCtx) combinedArtCtx.drawImage(artOnCardCanvas, 0, 0);
 
             /** @summary Draw the overall layout */
             /** Start with artwork at the bottom, then main frame, then outer card border. */
@@ -641,10 +650,12 @@ export const useMasterSeriDrawer = (active: boolean, canvasMap: MasterSeriesCanv
 
             /** @summary Draw NON-PENDULUM non-boundless card layout */
             if (!isPendulum) {
-                if (!boundless) {
+                // ⬅️ MODIFIÉ ICI
+                if (!isBoundless) {
                     await drawNameBackground();
                 }
-                if (!boundless && (keepEffectBox || !hasBackground)) {
+                // ⬅️ MODIFIÉ ICI
+                if (!isBoundless && (keepEffectBox || !hasBackground)) {
                     await drawEffectBackground({});
                     await drawEffectBorder();
                     /** Foil DOES NOT contains shadow, so it relies on the shadow of the border below. */
@@ -656,7 +667,8 @@ export const useMasterSeriDrawer = (active: boolean, canvasMap: MasterSeriesCanv
             }
 
             /** @summary Draw PENDULUM-LIKE non-boundless card layout. */
-            if (isPendulum && !boundless) {
+            // ⬅️ MODIFIÉ ICI
+            if (isPendulum && !isBoundless) {
                 /** Since pendulum art boundary is wider, we cannot relies on the artwork under frame, instead we must draw the artwork again, this time with different size. */
                 const {
                     artX,
@@ -688,14 +700,16 @@ export const useMasterSeriDrawer = (active: boolean, canvasMap: MasterSeriesCanv
                 }
             }
 
-            if (!boundless) {
+            // ⬅️ MODIFIÉ ICI
+            if (!isBoundless) {
                 await drawFrameFinish();
                 await drawNameFinish();
             }
             if (hasArtBorder) await drawFrameBackgroundFinish();
 
             /** Boundless art behavior here. If rigid frame is off, card image will be placed on top of the art border. The extended card image is still below name (text only), level, attribute, effect (both card and pendulum) and other predefined texts. */
-            if (boundless) {
+            // ⬅️ MODIFIÉ ICI
+            if (isBoundless) {
                 await drawNameBackground();
                 await drawNameFinish();
                 await drawNameBorder();
@@ -772,7 +786,8 @@ export const useMasterSeriDrawer = (active: boolean, canvasMap: MasterSeriesCanv
                 ...resolvedStatTextStyle,
             });
 
-            if (!boundless) {
+            // ⬅️ MODIFIÉ ICI
+            if (!isBoundless) {
                 await drawNameBorder();
                 await drawFrameBorder();
             }
@@ -800,7 +815,8 @@ export const useMasterSeriDrawer = (active: boolean, canvasMap: MasterSeriesCanv
                 resetStyle();
             }
             await drawPredefinedMark({
-                bordered: (opacityBody < 50 || boundless) && !isPendulum,
+                // ⬅️ MODIFIÉ ICI : boundless -> isBoundless
+                bordered: (opacityBody < 50 || isBoundless) && !isPendulum,
                 canvas: frameCanvasRef.current,
                 globalScale,
                 isDuelTerminalCard, isSpeedCard,
@@ -873,6 +889,7 @@ export const useMasterSeriDrawer = (active: boolean, canvasMap: MasterSeriesCanv
         getLinkLayer,
         withRedScale,
         imageChangeCount, // Special dependency, do not remove even though it is not used in the effect itself
+        artFit, // ⬅️ AJOUTÉ ICI
     ]);
 
     /** DRAW PENDULUM SCALE */
@@ -1121,6 +1138,9 @@ export const useMasterSeriDrawer = (active: boolean, canvasMap: MasterSeriesCanv
                 body: opacityBody,
                 boundless,
             } = normalizedOpacity;
+            // ⬅️ AJOUTÉ ICI : on combine avec artFit
+            const isBoundless = boundless || artFit;
+
             const endOfCreatorText = await drawCreatorText({
                 ctx: creatorCanvasRef.current?.getContext('2d'),
                 format,
@@ -1143,7 +1163,8 @@ export const useMasterSeriDrawer = (active: boolean, canvasMap: MasterSeriesCanv
                     ctx,
                     globalScale,
                     type: (lightFooter && !isPendulum) ? 'white' : 'black',
-                    bordered: (opacityBody < 50 || boundless) && !isPendulum,
+                    // ⬅️ MODIFIÉ ICI : boundless -> isBoundless
+                    bordered: (opacityBody < 50 || isBoundless) && !isPendulum,
                     isLink, isPendulum,
                     widthOffset: (endOfCreatorText?.leftEdge ?? compactThreshold) < compactThreshold
                         ? compactOffset
@@ -1170,6 +1191,7 @@ export const useMasterSeriDrawer = (active: boolean, canvasMap: MasterSeriesCanv
         opacity,
         requireShadow,
         resolvedOtherEffectTextStyle,
+        artFit, // ⬅️ AJOUTÉ ICI
     ]);
 
     /** DRAW STICKER */
