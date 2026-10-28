@@ -686,8 +686,8 @@ export const ImageCropper = forwardRef<ImageCropperRef, ImageCropper>(({
                         : language['image-cropper.not-found-info']}
                     image={null}
                 />}
-                <ReactCrop key={`${sourceType}-${isMigrated}-${redrawSignal}`}
-                    src={sourceType === 'offline' ? internalSource : externalSource}
+                <ReactCrop key={`${sourceType}-${isMigrated}-${redrawSignal}-${sourceType === 'offline' ? internalSource : externalSource}`}
+                    src={sourceType === 'offline' ? (internalSource || '') : (externalSource || '')}
                     disabled={(forceFit || disabled)}
                     className={(forceFit || disabled) ? 'force-fitted' : ''}
                     imageStyle={backgroundColor
