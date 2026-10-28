@@ -50,51 +50,59 @@ export const useCardExport = ({
     const normalizedName = normalizeCardName(name);
     const pendingSave = useRef(false);
 
-    const getCardDataUrl = useCallback((size: [number, number] = resolution) => {
+    /** Clone the export canvas at the requested size and return a PNG blob. */
+    const getCardBlob = useCallback((size: [number, number] = resolution): Promise<Blob | null> => {
         const drawCanvas = exportCanvasRef.current;
-        /** Clone node so we can resize it as will */
         const clonedCanvas = drawCanvas?.cloneNode() as HTMLCanvasElement | null;
-        const drawCanvasContext = drawCanvas?.getContext('2d');
-        const clonedCanvasContext = clonedCanvas?.getContext('2d');
-        if (drawCanvas && drawCanvasContext
-            && clonedCanvas && clonedCanvasContext
-            && !isTainted
-        ) {
-            if (size) {
-                clonedCanvas.width = size[0];
-                clonedCanvas.height = size[1];
-            }
-            /** Resize here */
-            clonedCanvasContext.drawImage(
-                drawCanvas,
-                0, 0, drawCanvas.width, drawCanvas.height,
-                0, 0, clonedCanvas.width, clonedCanvas.height,
-            );
+        if (!drawCanvas || !clonedCanvas || isTainted) return Promise.resolve(null);
 
-            return clonedCanvas.toDataURL('image/png');
-        }
+        clonedCanvas.width = size[0];
+        clonedCanvas.height = size[1];
+        const clonedCtx = clonedCanvas.getContext('2d');
+        if (!clonedCtx) return Promise.resolve(null);
+
+        clonedCtx.drawImage(
+            drawCanvas,
+            0, 0, drawCanvas.width, drawCanvas.height,
+            0, 0, clonedCanvas.width, clonedCanvas.height,
+        );
+
+        return new Promise(resolve => clonedCanvas.toBlob(resolve, 'image/png'));
     }, [exportCanvasRef, isTainted, resolution]);
+
+    /** Legacy data-url helper, kept for the single-card download path. */
+    const getCardDataUrl = useCallback(async (size: [number, number] = resolution) => {
+        const blob = await getCardBlob(size);
+        if (!blob) return undefined;
+        return new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+    }, [getCardBlob]);
+
     const addToCurrentBatch = useCallback(async (
         cardName: string,
         cardId: string,
         size: [number, number] = resolution,
     ) => {
         try {
-            const cardData = getCardDataUrl(size);
-            if (typeof cardData !== 'string') throw new Error('Failed to add card to batch');
-            const fetchedDataUrl = await fetch(cardData);
-            const blob = await fetchedDataUrl.blob();
+            // Wait for the browser to actually paint the canvas before snapshotting it.
+            await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+            const blob = await getCardBlob(size);
+            if (!blob) throw new Error('Failed to add card to batch');
             if (isBatchDownloading) addToBatch(cardId, cardName, blob);
         } catch (e) {
             onDownloadError();
         }
         document.querySelector('#export-canvas-guard')?.classList.remove('guard-on');
-        onDownloadComplete();
-    }, [addToBatch, getCardDataUrl, isBatchDownloading, onDownloadComplete, onDownloadError, resolution]);
-    const download = useCallback((size: [number, number] = resolution) => {
+    }, [addToBatch, getCardBlob, isBatchDownloading, onDownloadError, resolution]);
+
+    const download = useCallback(async (size: [number, number] = resolution) => {
         try {
             const normalizedName = normalizeCardName(name);
-            const cardData = getCardDataUrl(size);
+            const cardData = await getCardDataUrl(size);
             if (typeof cardData !== 'string') throw new Error('Failed to trigger automatic download');
             const link = document.createElement('a');
             link.download = normalizedName
@@ -108,6 +116,7 @@ export const useCardExport = ({
         document.querySelector('#export-canvas-guard')?.classList.remove('guard-on');
         onDownloadComplete();
     }, [resolution, onDownloadComplete, name, getCardDataUrl, onDownloadError]);
+
     const onSave = (size?: [number, number]) => {
         document.querySelector('#export-canvas-guard')?.classList.add('guard-on');
         const queuingSize = size ? [...size] as [number, number] : undefined;
@@ -156,14 +165,6 @@ export const useCardExport = ({
             return language['prompt.warning.on-leave.label'];
         };
         if (isInitializing === false) {
-            /**
-             * Run export pipeline:
-             * - Immediately mark the pipeline as running, then run wait for the current pipeline (1).
-             * - If the (1) pipeline is no longer relevant, end effect.
-             * - Otherwise (the current pipeline is the newest), start export pipeline, this export pipeline is now the current pipeline (2).
-             * - If the (2) pipeline is no longer relevant, end effect.
-             * - Otherwise finish the pipeline and write result, also mark the pipeline as no longer running.
-             */
             (async () => {
                 const canvasRef = exportCanvasRef.current;
                 if (canvasRef) {
@@ -174,8 +175,6 @@ export const useCardExport = ({
                     document.getElementById('save-button-waiting')?.setAttribute('style', 'display: block');
 
                     exportRef.current.pipelineRunning = true;
-                    /** Artifical delay, turn on to test export timing */
-                    // await new Promise(resolve => setTimeout(() => resolve(true), 3000));
                     await exportRef.current.currentPipeline;
 
                     if (thisCounter === drawCounter.current) {
@@ -190,7 +189,6 @@ export const useCardExport = ({
 
                         await exportRef.current.currentPipeline;
                         if (thisCounter === drawCounter.current) {
-                            /** Never include art data here, it will easily exceed the limit of url length */
                             const normalizedCard = {
                                 ...currentCard,
                                 artData: '',
@@ -213,21 +211,22 @@ export const useCardExport = ({
                             document.getElementById('save-button-waiting')?.setAttribute('style', 'display: none');
                             saveCardLocally(useCard.getState().card);
                             window.removeEventListener('beforeunload', confirmReload);
+
+                            // Batch capture: wait for paint, then snapshot, THEN release pipeline.
+                            if (isBatchDownloading && !batchDataMap[normalizedCard.id]) {
+                                await addToCurrentBatch(
+                                    exportScheme === 'with-name'
+                                        ? `${normalizedName}.png`
+                                        : `${normalizedCard.setId} - ${normalizedName}.png`,
+                                    normalizedCard.id,
+                                );
+                            }
+
                             exportRef.current.pipelineRunning = false;
 
                             if (pendingSave.current) {
                                 pendingSave.current = false;
                                 download();
-                            }
-                            if (isBatchDownloading && !batchDataMap[normalizedCard.id]) {
-                                setTimeout(() => {
-                                    addToCurrentBatch(
-                                        exportScheme === 'with-name'
-                                            ? `${normalizedName}.png`
-                                            : `${normalizedCard.setId} - ${normalizedName}.png`,
-                                        normalizedCard.id,
-                                    );
-                                }, 200);
                             }
                         }
                     }
