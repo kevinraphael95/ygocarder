@@ -20,6 +20,28 @@ export type UseCardExport = {
     onDownloadError: () => void,
     onDownloadComplete: () => void,
 };
+
+const nextFrame = () => new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+
+/**
+ * Wait until every cropper image is fully loaded, then let React + the cropper redraw (2 frames).
+ * Used in batch mode BEFORE the export pipeline starts, so the export canvas never gets drawn with the previous card's art.
+ */
+const waitForArtReady = async () => {
+    const images = Array.from(document.querySelectorAll<HTMLImageElement>('.ReactCrop img'));
+    await Promise.all(images.map(img => {
+        if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+        return new Promise<void>(resolve => {
+            const done = () => resolve();
+            img.addEventListener('load', done, { once: true });
+            img.addEventListener('error', done, { once: true });
+            setTimeout(done, 3000); // safety net
+        });
+    }));
+    await nextFrame();
+    await nextFrame();
+};
+
 /** To ensure the best performance, all of this hook's paramter must be memozied. */
 export const useCardExport = ({
     isTainted,
@@ -89,7 +111,7 @@ export const useCardExport = ({
     ) => {
         try {
             // Wait for the browser to actually paint the canvas before snapshotting it.
-            await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+            await nextFrame();
             const blob = await getCardBlob(size);
             if (!blob) throw new Error('Failed to add card to batch');
             if (isBatchDownloading) addToBatch(cardId, cardName, blob);
@@ -176,6 +198,12 @@ export const useCardExport = ({
 
                     exportRef.current.pipelineRunning = true;
                     await exportRef.current.currentPipeline;
+
+                    // 🔧 FIX batch: attendre que la nouvelle image d'art soit chargée ET redessinée
+                    // AVANT de dessiner le canvas d'export (sinon il reprend l'art de la carte précédente).
+                    if (isBatchDownloading && !batchDataMap[currentCard.id]) {
+                        await waitForArtReady();
+                    }
 
                     if (thisCounter === drawCounter.current) {
                         exportRef.current.currentPipeline = onExport({
